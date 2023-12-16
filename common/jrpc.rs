@@ -1,10 +1,29 @@
 use serde::{Deserialize, Serialize};
-use json_rpc_types::{Request, Response};
+use super::methods::Method;
 
-#[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
-pub enum Method {
+#[derive(Serialize, Deserialize, Default, Debug)]
+pub enum Version {
     #[default]
-    Stop
+    #[serde(rename = "2.0")]
+    V2
 }
 
-pub type MatrixRequest = Request<bool, Method>;
+#[derive(Serialize, Deserialize, Default, Debug)]
+pub struct Request {
+    #[serde(rename = "jsonrpc")]
+    pub version: Version,
+    #[serde(flatten)]
+    pub method: Method,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<i64>,
+}
+
+impl Request {
+    pub fn new(method: Method, id: Option<i64>) -> Self {
+        Self {
+            version: Version::V2,
+            method,
+            id,
+        }
+    }
+}

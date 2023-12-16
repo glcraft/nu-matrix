@@ -1,15 +1,15 @@
 mod socket;
 
-use nu_matrix_common::jrpc::{Method, MatrixRequest};
+use nu_matrix_common::{
+    jrpc::Request,
+    methods::Method
+};
 
-use serde::Deserialize;
-use json_rpc_types::{Request, Response};
 use interprocess::local_socket::tokio::LocalSocketStream;
 use std::io;
 use futures::io::{
     AsyncReadExt, BufReader
 };
-// BufReader
 
 fn handle_error(conn: io::Result<LocalSocketStream>) -> Option<LocalSocketStream> {
     match conn {
@@ -45,7 +45,7 @@ async fn main() {
             eprintln!("Failed to read from stream: {e}");
             continue;
         }
-        let request =  match serde_json::from_str::<MatrixRequest>(&buffer) {
+        let request =  match serde_json::from_str::<Request>(&buffer) {
             Ok(r) => r,
             Err(e) => {
                 eprintln!("Failed to parse JSON: {e}");

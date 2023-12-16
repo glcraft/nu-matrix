@@ -1,7 +1,9 @@
-use nu_matrix_common::jrpc::{Method, MatrixRequest};
+use nu_matrix_common::{
+    jrpc::Request,
+    methods::Method
+};
 use interprocess::local_socket::{LocalSocketStream, NameTypeSupport};
-use std::io::{BufWriter, Write};
-
+use std::io::BufWriter;
 
 fn main() -> std::io::Result<()>{
     let name = match NameTypeSupport::query() {
@@ -16,11 +18,6 @@ fn main() -> std::io::Result<()>{
 
     let writer = BufWriter::new(stream);
 
-    serde_json::to_writer(writer, &MatrixRequest{
-        jsonrpc: Default::default(),
-        id: None,
-        params: None,
-        method: Method::Stop
-    })?;
+    serde_json::to_writer(writer, &Request::new(Method::Stop, None))?;
     Ok(())
 }
