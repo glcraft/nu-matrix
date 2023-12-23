@@ -1,3 +1,5 @@
+mod process;
+
 use nu_matrix_common::{
     jrpc::Request,
     methods::Method
@@ -6,6 +8,7 @@ use interprocess::local_socket::{LocalSocketStream, NameTypeSupport};
 use std::io::BufWriter;
 
 fn main() -> std::io::Result<()>{
+    let ppid = process::parent_id().expect("Failed to get parent process ID");
     let name = match NameTypeSupport::query() {
         NameTypeSupport::OnlyPaths => {
             let tmp = std::env::temp_dir();
@@ -18,6 +21,6 @@ fn main() -> std::io::Result<()>{
 
     let writer = BufWriter::new(stream);
 
-    serde_json::to_writer(writer, &Request::new(Method::Stop, None))?;
+    serde_json::to_writer(writer, &Request::new(ppid, Method::Stop, None))?;
     Ok(())
 }

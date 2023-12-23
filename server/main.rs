@@ -1,4 +1,7 @@
+mod matrix;
 mod socket;
+mod run;
+mod context;
 
 use nu_matrix_common::{
     jrpc::Request,
@@ -31,6 +34,8 @@ async fn main() {
 
     let mut buffer = String::with_capacity(1024);
 
+    let mut ctx = context::ApplicationContext::new();
+
     loop {
 
         let conn = match listener.accept().await {
@@ -57,6 +62,13 @@ async fn main() {
 
         if request.method == Method::Stop {
             break;
+        } else {
+            let pid = 1;
+            let session = match ctx.session_mut(pid) {
+                Some(s) => s,
+                None => ctx.new_session(pid)
+            };
+            run::run(session, request.method).unwrap();
         }
     }
 }

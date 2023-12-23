@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 pub enum Method {
     #[default]
     Stop,
-    Substract(i32, i32),
+    NewIdentity(u32, u32),
 }
 
 impl Method {
