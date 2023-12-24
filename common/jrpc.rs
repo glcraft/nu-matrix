@@ -15,11 +15,11 @@ pub struct Request {
     pub method: Method,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<i64>,
-    pub session: u32,
+    pub session: u64,
 }
 
 impl Request {
-    pub fn new(session: u32, method: Method, id: Option<i64>) -> Self {
+    pub fn new(session: u64, method: Method, id: Option<i64>) -> Self {
         Self {
             version: Version::V2,
             method,
@@ -130,7 +130,25 @@ pub enum Result<T> {
 pub struct Response<T> {
     #[serde(rename = "jsonrpc")]
     pub version: Version,
-    pub id: i64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<i64>,
     #[serde(flatten)]
     pub result: Result<T>,
+}
+
+impl<T> Response<T> {
+    pub fn ok(id: Option<i64>, result: T ) -> Self {
+        Self {
+            version: Version::V2,
+            id,
+            result: Result::Ok(result),
+        }
+    }
+    pub fn err(id: Option<i64>, err: Error) -> Self {
+        Self {
+            version: Version::V2,
+            id,
+            result: Result::Err(err),
+        }
+    }
 }

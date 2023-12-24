@@ -13,3 +13,9 @@ impl Method {
         matches!(self, Method::Stop)
     }
 }
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
+pub enum Response {
+    NewIdentity{
+        id: u64,
+    }
+}

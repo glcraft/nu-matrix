@@ -4,15 +4,13 @@ mod run;
 mod context;
 
 use nu_matrix_common::{
-    jrpc::Request,
-    methods::Method
+    jrpc::{Request, Response, Error},
+    methods::Method,
+    comm,
 };
 
-use interprocess::local_socket::tokio::LocalSocketStream;
+use interprocess::local_socket::LocalSocketStream;
 use std::io;
-use futures::io::{
-    AsyncReadExt, BufReader
-};
 
 fn handle_error(conn: io::Result<LocalSocketStream>) -> Option<LocalSocketStream> {
     match conn {
@@ -32,43 +30,39 @@ async fn main() {
     eprintln!("Socket at {name}");
     let listener = socket::make_listener(name).expect("Failed to bind to socket");
 
-    let mut buffer = String::with_capacity(1024);
+    
 
     let mut ctx = context::ApplicationContext::new();
 
     loop {
-
-        let conn = match listener.accept().await {
+        let mut stream = match listener.accept() {
             Ok(c) => c,
             e => {
                 handle_error(e);
                 continue;
             },
         };
-        let mut stream = BufReader::new(conn);
-        if let Err(e) = stream.read_to_string(&mut buffer).await {
-            eprintln!("Failed to read from stream: {e}");
-            continue;
-        }
-        let request =  match serde_json::from_str::<Request>(&buffer) {
-            Ok(r) => r,
-            Err(e) => {
-                eprintln!("Failed to parse JSON: {e}");
-                continue;
-            }
-        };
+        let request = comm::receive::<Request>(&mut stream).expect("Failed to receive request");
 
         eprintln!("Got request: {request:?}");
 
         if request.method == Method::Stop {
             break;
-        } else {
-            let pid = 1;
+        }
+        {
+            let pid = request.session;
             let session = match ctx.session_mut(pid) {
                 Some(s) => s,
                 None => ctx.new_session(pid)
             };
-            run::run(session, request.method).unwrap();
+            let res = match run::run(session, request.method) {
+                Ok(r) => Response::ok(request.id, r),
+                Err(_) => Response::err(request.id, Error::InternalError)
+            };
+            if let Err(e) = comm::send(&mut stream, res) {
+                eprintln!("Failed to read from stream: {e}");
+                continue;
+            }
         }
     }
 }

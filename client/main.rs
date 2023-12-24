@@ -1,14 +1,15 @@
 mod process;
 
 use nu_matrix_common::{
-    jrpc::Request,
-    methods::Method
+    jrpc::{Request, Response},
+    methods::{self, Method},
+    comm::{receive, send},
 };
 use interprocess::local_socket::{LocalSocketStream, NameTypeSupport};
-use std::io::BufWriter;
+use std::io::{BufWriter, Write};
 
-fn main() -> std::io::Result<()>{
-    let ppid = process::parent_id().expect("Failed to get parent process ID");
+
+fn get_socket_name() -> String {
     let name = match NameTypeSupport::query() {
         NameTypeSupport::OnlyPaths => {
             let tmp = std::env::temp_dir();
@@ -16,11 +17,29 @@ fn main() -> std::io::Result<()>{
         },
         NameTypeSupport::OnlyNamespaced | NameTypeSupport::Both => "@nu-matrix.sock".into(),
     };
+    name
+}
 
-    let stream = LocalSocketStream::connect(name)?;
+fn send_request(stream: &mut LocalSocketStream, method: Method) -> String {
+    let ppid = process::parent_id().expect("Failed to get parent process ID");
+    let current_time: i64 = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("Failed to get current time")
+        .as_millis()
+        .try_into()
+        .expect("Failed to convert time to i64");
+    let req = Request::new(ppid as _, method, Some(current_time));
+    println!("Sending request: {req:?}");
+    
+    send(stream, req).expect("Failed to send request");
+    
+    let res = receive::<Response<methods::Response>>(stream).expect("Failed to receive response");
+    format!("{res:?}")
+}
 
-    let writer = BufWriter::new(stream);
-
-    serde_json::to_writer(writer, &Request::new(ppid, Method::Stop, None))?;
+fn main() -> std::io::Result<()>{
+    let mut stream = LocalSocketStream::connect(get_socket_name()).expect("Failed to connect to socket");
+    let res = send_request(&mut stream, Method::NewIdentity(3, 3));
+    println!("Got response: {res}");
     Ok(())
 }

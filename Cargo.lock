@@ -917,6 +917,7 @@ checksum = "5b5040ac6629fe514790a753340745715d3adb7fcb44a03a60b92e9cae85c62b"
 name = "nu-matrix"
 version = "0.1.0"
 dependencies = [
+ "byteorder",
  "futures",
  "interprocess",
  "nu-plugin",

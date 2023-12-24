@@ -41,7 +41,9 @@ impl PerSessionContext {
     pub fn matrix_mut(&mut self, id: u64) -> Option<&mut Matrix> {
         self.matrices.get_mut(&id)
     }
-    pub fn add_matrix(&mut self, matrix: Matrix) {
+    pub fn add_matrix(&mut self, matrix: Matrix) -> u64 {
         self.matrices.insert(self.current_id, matrix);
+        self.current_id += 1;
+        self.current_id - 1
     }
 }
