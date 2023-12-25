@@ -27,11 +27,13 @@ fn send_request(stream: &mut LocalSocketStream, method: Method) -> Result<(), Er
         .as_millis()
         .try_into()
         .map_err(Error::ConvertInt)?;
+    let is_notif = method.is_notification();
     let req = Request::new(ppid as _, method, Some(current_time));
     
     send(stream, req)?;
-    
-    let _res = receive::<Response<methods::Response>>(stream)?;
+    if !is_notif {
+        let _res = receive::<Response<methods::Response>>(stream)?;
+    }
     Ok(())
 }
 

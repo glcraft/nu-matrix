@@ -9,7 +9,7 @@ pub enum Method {
 }
 
 impl Method {
-    fn is_notification(&self) -> bool {
+    pub fn is_notification(&self) -> bool {
         matches!(self, Method::Stop)
     }
 }
