@@ -31,12 +31,10 @@ async fn main() {
 
     info!("Socket at {name}");
     let listener = socket::make_listener(name).expect("Failed to bind to socket");
-
     
-
     let mut ctx = context::ApplicationContext::new();
 
-    loop {
+    'mainloop: loop {
         let mut stream = match listener.accept() {
             Ok(c) => c,
             e => {
@@ -44,14 +42,22 @@ async fn main() {
                 continue;
             },
         };
-        let request = comm::receive::<Request>(&mut stream).expect("Failed to receive request");
+        loop {
+            let request = match comm::receive::<Request>(&mut stream) {
+                Ok(r) => r,
+                Err(comm::Error::Exchange(e)) if matches!(e.kind(), io::ErrorKind::BrokenPipe | io::ErrorKind::UnexpectedEof) => {
+                    info!("Connection closed");
+                    break;
+                }
+                Err(e) => {
+                    error!("Failed to read from stream: {e:?}");
+                    break;
+                }
+            };
 
-        eprintln!("Got request: {request:?}");
-
-        if request.method == Method::Stop {
-            break;
-        }
-        {
+            if request.method == Method::Stop {
+                break 'mainloop;
+            }
             let pid = request.session;
             let session = match ctx.session_mut(pid) {
                 Some(s) => s,
@@ -62,9 +68,10 @@ async fn main() {
                 Err(_) => Response::err(request.id, Error::InternalError)
             };
             if let Err(e) = comm::send(&mut stream, res) {
-                eprintln!("Failed to read from stream: {e}");
-                continue;
+                error!("Failed to read from stream: {e}");
+                break;
             }
         }
     }
+    info!("Shutting down");
 }
