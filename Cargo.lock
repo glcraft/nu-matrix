@@ -924,6 +924,7 @@ dependencies = [
  "nu-protocol",
  "serde",
  "serde_json",
+ "thiserror",
  "tokio",
  "windows",
 ]

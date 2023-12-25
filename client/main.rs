@@ -3,10 +3,9 @@ mod process;
 use nu_matrix_common::{
     jrpc::{Request, Response},
     methods::{self, Method},
-    comm::{receive, send},
+    comm::{Error, receive, send},
 };
 use interprocess::local_socket::{LocalSocketStream, NameTypeSupport};
-use std::io::{BufWriter, Write};
 
 
 fn get_socket_name() -> String {
@@ -20,26 +19,25 @@ fn get_socket_name() -> String {
     name
 }
 
-fn send_request(stream: &mut LocalSocketStream, method: Method) -> String {
+fn send_request(stream: &mut LocalSocketStream, method: Method) -> Result<(), Error> {
     let ppid = process::parent_id().expect("Failed to get parent process ID");
     let current_time: i64 = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .expect("Failed to get current time")
         .as_millis()
         .try_into()
-        .expect("Failed to convert time to i64");
+        .map_err(Error::ConvertInt)?;
     let req = Request::new(ppid as _, method, Some(current_time));
-    println!("Sending request: {req:?}");
     
-    send(stream, req).expect("Failed to send request");
+    send(stream, req)?;
     
-    let res = receive::<Response<methods::Response>>(stream).expect("Failed to receive response");
-    format!("{res:?}")
+    let _res = receive::<Response<methods::Response>>(stream)?;
+    Ok(())
 }
 
-fn main() -> std::io::Result<()>{
+fn main() -> Result<(), Error> {
     let mut stream = LocalSocketStream::connect(get_socket_name()).expect("Failed to connect to socket");
-    let res = send_request(&mut stream, Method::NewIdentity(3, 3));
-    println!("Got response: {res}");
+    send_request(&mut stream, Method::NewIdentity(3, 3))?;
+    send_request(&mut stream, Method::Stop)?;
     Ok(())
 }
