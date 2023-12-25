@@ -3,6 +3,7 @@ mod socket;
 mod run;
 mod context;
 
+use interprocess::local_socket::LocalSocketStream;
 use log::{info, error};
 use nu_matrix_common::{
     jrpc::{Request, Response, Error},
@@ -11,6 +12,40 @@ use nu_matrix_common::{
 };
 
 use std::io;
+
+fn on_connection(ctx: &mut context::ApplicationContext, mut stream: LocalSocketStream) -> bool {
+    loop {
+        let request = match comm::receive::<Request>(&mut stream) {
+            Ok(r) => r,
+            Err(comm::Error::Exchange(e)) if matches!(e.kind(), io::ErrorKind::BrokenPipe | io::ErrorKind::UnexpectedEof) => {
+                info!("Connection closed");
+                break;
+            }
+            Err(e) => {
+                error!("Failed to read from stream: {e:?}");
+                break;
+            }
+        };
+
+        if request.method == Method::Stop {
+            return true;
+        }
+        let pid = request.session;
+        let session = match ctx.session_mut(pid) {
+            Some(s) => s,
+            None => ctx.new_session(pid)
+        };
+        let res = match run::run(session, request.method) {
+            Ok(r) => Response::ok(request.id, r),
+            Err(_) => Response::err(request.id, Error::InternalError)
+        };
+        if let Err(e) = comm::send(&mut stream, res) {
+            error!("Failed to read from stream: {e}");
+            break;
+        }
+    }
+    false
+}
 
 
 #[tokio::main]
@@ -21,46 +56,19 @@ async fn main() {
 
     info!("Socket at {name}");
     let listener = socket::make_listener(name).expect("Failed to bind to socket");
-    
+
     let mut ctx = context::ApplicationContext::new();
 
-    'mainloop: loop {
-        let mut stream = match listener.accept() {
+    loop {
+        let stream = match listener.accept() {
             Ok(c) => c,
             Err(e) => {
                 eprintln!("Incoming connection failed: {e}");
                 continue;
             },
         };
-        loop {
-            let request = match comm::receive::<Request>(&mut stream) {
-                Ok(r) => r,
-                Err(comm::Error::Exchange(e)) if matches!(e.kind(), io::ErrorKind::BrokenPipe | io::ErrorKind::UnexpectedEof) => {
-                    info!("Connection closed");
-                    break;
-                }
-                Err(e) => {
-                    error!("Failed to read from stream: {e:?}");
-                    break;
-                }
-            };
-
-            if request.method == Method::Stop {
-                break 'mainloop;
-            }
-            let pid = request.session;
-            let session = match ctx.session_mut(pid) {
-                Some(s) => s,
-                None => ctx.new_session(pid)
-            };
-            let res = match run::run(session, request.method) {
-                Ok(r) => Response::ok(request.id, r),
-                Err(_) => Response::err(request.id, Error::InternalError)
-            };
-            if let Err(e) = comm::send(&mut stream, res) {
-                error!("Failed to read from stream: {e}");
-                break;
-            }
+        if on_connection(&mut ctx, stream) {
+            break;
         }
     }
     info!("Shutting down");
