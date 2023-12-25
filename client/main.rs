@@ -36,6 +36,8 @@ fn send_request(stream: &mut LocalSocketStream, method: Method) -> Result<(), Er
 }
 
 fn main() -> Result<(), Error> {
+    nu_matrix_common::init_log().expect("Failed to initialize logger");
+
     let mut stream = LocalSocketStream::connect(get_socket_name()).expect("Failed to connect to socket");
     send_request(&mut stream, Method::NewIdentity(3, 3))?;
     send_request(&mut stream, Method::Stop)?;

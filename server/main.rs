@@ -3,6 +3,7 @@ mod socket;
 mod run;
 mod context;
 
+use log::{info, error};
 use nu_matrix_common::{
     jrpc::{Request, Response, Error},
     methods::Method,
@@ -24,10 +25,11 @@ fn handle_error(conn: io::Result<LocalSocketStream>) -> Option<LocalSocketStream
 
 #[tokio::main]
 async fn main() {
-    
+    nu_matrix_common::init_log().expect("Failed to initialize logger");
+
     let name = socket::get_socket_name();
 
-    eprintln!("Socket at {name}");
+    info!("Socket at {name}");
     let listener = socket::make_listener(name).expect("Failed to bind to socket");
 
     
