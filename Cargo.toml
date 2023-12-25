@@ -17,9 +17,6 @@ path = "server/main.rs"
 name = "nu_matrix_common"
 path = "common/lib.rs"
 
-
-
-
 [dependencies]
 nu-plugin = "0.88.0"
 nu-protocol = "0.88.0"

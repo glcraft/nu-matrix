@@ -10,18 +10,8 @@ use nu_matrix_common::{
     comm,
 };
 
-use interprocess::local_socket::LocalSocketStream;
 use std::io;
 
-fn handle_error(conn: io::Result<LocalSocketStream>) -> Option<LocalSocketStream> {
-    match conn {
-        Ok(c) => Some(c),
-        Err(e) => {
-            eprintln!("Incoming connection failed: {e}");
-            None
-        }
-    }
-}
 
 #[tokio::main]
 async fn main() {
@@ -37,8 +27,8 @@ async fn main() {
     'mainloop: loop {
         let mut stream = match listener.accept() {
             Ok(c) => c,
-            e => {
-                handle_error(e);
+            Err(e) => {
+                eprintln!("Incoming connection failed: {e}");
                 continue;
             },
         };
