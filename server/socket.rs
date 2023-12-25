@@ -2,7 +2,7 @@ use std::io;
 
 use interprocess::local_socket::{
     NameTypeSupport,
-    LocalSocketListener
+    tokio::LocalSocketListener
 };
 
 pub fn get_socket_name() -> String {
