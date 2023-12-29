@@ -20,3 +20,10 @@ impl Matrix {
         }
     }
 }
+
+impl std::ops::Deref for Matrix {
+    type Target = [f32];
+    fn deref(&self) -> &Self::Target {
+        &self.data
+    }
+}

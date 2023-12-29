@@ -1,25 +1,40 @@
 use std::collections::HashMap;
 use crate::matrix::Matrix;
+use std::sync::{Arc, Mutex};
+
+pub type PerSessionContextInstance = Arc<Mutex<PerSessionContext>>;
+
+// Error triggered when session is not found when stopped
+pub struct SessionNotFound;
 
 pub struct ApplicationContext {
-    sessions: HashMap<u64, PerSessionContext>,
+    sessions: HashMap<u64, PerSessionContextInstance>,
+    stop: bool,
 }
 
 impl ApplicationContext {
     pub fn new() -> Self {
         Self {
             sessions: HashMap::new(),
+            stop: false,
         }
     }
-    pub fn session(&self, id: u64) -> Option<&PerSessionContext> {
-        self.sessions.get(&id)
+    pub fn session(&mut self, id: u64) -> PerSessionContextInstance {
+        self.sessions.entry(id).or_insert_with(|| Arc::new(Mutex::new(PerSessionContext::new()))).clone()
     }
-    pub fn session_mut(&mut self, id: u64) -> Option<&mut PerSessionContext> {
-        self.sessions.get_mut(&id)
+    pub fn new_session(&mut self, pid: u64) -> PerSessionContextInstance {
+        self.sessions.insert(pid, Arc::new(Mutex::new(PerSessionContext::new())));
+        self.session(pid)
     }
-    pub fn new_session(&mut self, pid: u64) -> &mut PerSessionContext {
-        self.sessions.insert(pid, PerSessionContext::new());
-        unsafe { self.session_mut(pid).unwrap_unchecked() }
+    pub fn stop_session(&mut self, id: u64) -> Result<(), SessionNotFound>{
+        if self.sessions.remove(&id).is_none() {
+            return Err(SessionNotFound);
+        }
+        self.stop = true;
+        Ok(())
+    }
+    pub fn is_finishable(&self) -> bool {
+        self.stop && self.sessions.is_empty()
     }
 }
 
