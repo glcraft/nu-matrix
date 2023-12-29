@@ -14,7 +14,7 @@ fn matrix_identity() {
 #[test]
 fn until_future() {
     use std::time::Duration;
-    use nu_matrix_common::future::Timeout;
+    use nu_matrix_common::future::timeout;
 
     let fut_func = || async move {
         tokio::time::sleep(Duration::from_millis(100)).await;
@@ -26,8 +26,8 @@ fn until_future() {
         .build()
         .unwrap();
     runtime.block_on(async {
-        let wait1 = Timeout::new(fut_func(), Duration::from_millis(50));
-        let wait2 = Timeout::new(fut_func(), Duration::from_millis(500));
+        let wait1 = timeout(fut_func(), Duration::from_millis(50));
+        let wait2 = timeout(fut_func(), Duration::from_millis(500));
         assert_eq!(wait1.await, None);
         assert_eq!(wait2.await, Some(1));
     })
